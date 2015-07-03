@@ -149,9 +149,29 @@ func (f *Frame) UnmarshalBinary(b []byte) error {
 	// Payload must be 46 bytes minimum, but the required number decreases
 	// to 42 if a VLAN tag is present.
 	//
-	// TODO(mdlayher): confirm if multiple VLAN tags further decrease this
-	// threshold.  For now, this is the way this check is implemented.
-	if len(b[n:]) < 46-(len(f.VLAN)*4) {
+	// Special case: the operating system will likely automatically remove VLAN
+	// tags before we get ahold of the traffic.  If the packet length seems to
+	// indicate that a VLAN tag was present (42 bytes payload instead of 46
+	// bytes), but no VLAN tags were detected, we relax the minimum length
+	// restriction and act as if a VLAN tag was detected.
+
+	// Check how many bytes under minimum the payload is
+	l := 46 - len(b[n:])
+
+	// Check for number of VLANs detected, but only use 1 to reduce length
+	// requirement if more than 1 is present
+	vl := len(f.VLAN)
+	if vl > 1 {
+		vl = 1
+	}
+
+	// If no VLANs detected and exactly 4 bytes below requirement, a VLAN tag
+	// may have been stripped, so factor a single VLAN tag into the minimum length
+	// requirement
+	if vl == 0 && l == 4 {
+		vl++
+	}
+	if len(b[n:]) < 46-(vl*4) {
 		return io.ErrUnexpectedEOF
 	}
 
