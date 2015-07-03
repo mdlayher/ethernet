@@ -15,6 +15,13 @@ func TestVLANMarshalBinary(t *testing.T) {
 		err  error
 	}{
 		{
+			desc: "VLAN priority too large",
+			v: &VLAN{
+				Priority: 8,
+			},
+			err: ErrInvalidVLAN,
+		},
+		{
 			desc: "VLAN ID too large",
 			v: &VLAN{
 				ID: 4095,
