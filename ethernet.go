@@ -46,8 +46,10 @@ type Frame struct {
 	SourceMAC net.HardwareAddr
 
 	// VLAN specifies one or more optional 802.1Q VLAN tags, which may or may
-	// not be present in a Frame.  If no VLAN tags are present, this length of
-	// the slice will be 0.
+	// not be present in a Frame.  It is important to note that the operating
+	// system may automatically strip VLAN tags before they can be parsed.
+	//
+	// If no VLAN tags are present, this length of the slice will be 0.
 	VLAN []*VLAN
 
 	// EtherType is a value used to identify an upper layer protocol
