@@ -10,6 +10,12 @@ import (
 
 //go:generate stringer -output=string.go -type=EtherType
 
+const (
+	// minPayload is the minimum payload size for an Ethernet frame, assuming
+	// that no 802.1Q VLAN tags are present.
+	minPayload = 46
+)
+
 var (
 	// Broadcast is a special MAC address which indicates a Frame should be
 	// sent to every device on a given LAN segment.
@@ -70,10 +76,18 @@ func (f *Frame) MarshalBinary() ([]byte, error) {
 	// 6 bytes: source MAC
 	// N bytes: 4 * N VLAN tags
 	// 2 bytes: EtherType
-	// N bytes: payload length
+	// N bytes: payload length (may be padded)
 	//
 	// We let the operating system handle the checksum and the interpacket gap
-	b := make([]byte, 6+6+(4*len(f.VLAN))+2+len(f.Payload))
+
+	// If payload is less than the required minimum length, we zero-pad up to
+	// the required minimum length
+	pl := len(f.Payload)
+	if pl < minPayload {
+		pl = minPayload
+	}
+
+	b := make([]byte, 6+6+(4*len(f.VLAN))+2+pl)
 
 	copy(b[0:6], f.DestinationMAC)
 	copy(b[6:12], f.SourceMAC)
@@ -158,7 +172,7 @@ func (f *Frame) UnmarshalBinary(b []byte) error {
 	// restriction and act as if a VLAN tag was detected.
 
 	// Check how many bytes under minimum the payload is
-	l := 46 - len(b[n:])
+	l := minPayload - len(b[n:])
 
 	// Check for number of VLANs detected, but only use 1 to reduce length
 	// requirement if more than 1 is present
@@ -173,7 +187,7 @@ func (f *Frame) UnmarshalBinary(b []byte) error {
 	if vl == 0 && l == 4 {
 		vl++
 	}
-	if len(b[n:]) < 46-(vl*4) {
+	if len(b[n:]) < minPayload-(vl*4) {
 		return io.ErrUnexpectedEOF
 	}
 
