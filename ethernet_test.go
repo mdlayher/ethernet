@@ -36,10 +36,10 @@ func TestFrameMarshalBinary(t *testing.T) {
 		{
 			desc: "IPv4, no VLANs",
 			f: &Frame{
-				DestinationMAC: net.HardwareAddr{0, 1, 0, 1, 0, 1},
-				SourceMAC:      net.HardwareAddr{1, 0, 1, 0, 1, 0},
-				EtherType:      EtherTypeIPv4,
-				Payload:        bytes.Repeat([]byte{0}, 50),
+				DestinationHardwareAddr: net.HardwareAddr{0, 1, 0, 1, 0, 1},
+				SourceHardwareAddr:      net.HardwareAddr{1, 0, 1, 0, 1, 0},
+				EtherType:               EtherTypeIPv4,
+				Payload:                 bytes.Repeat([]byte{0}, 50),
 			},
 			b: append([]byte{
 				0, 1, 0, 1, 0, 1,
@@ -50,8 +50,8 @@ func TestFrameMarshalBinary(t *testing.T) {
 		{
 			desc: "IPv6, 1 VLAN: PRI 1, ID 101",
 			f: &Frame{
-				DestinationMAC: net.HardwareAddr{1, 0, 1, 0, 1, 0},
-				SourceMAC:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
+				DestinationHardwareAddr: net.HardwareAddr{1, 0, 1, 0, 1, 0},
+				SourceHardwareAddr:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
 				VLAN: []*VLAN{{
 					Priority: 1,
 					ID:       101,
@@ -70,8 +70,8 @@ func TestFrameMarshalBinary(t *testing.T) {
 		{
 			desc: "ARP, 2 VLANs: (PRI 0, DROP, ID 100) (PRI 1, ID 101)",
 			f: &Frame{
-				DestinationMAC: Broadcast,
-				SourceMAC:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
+				DestinationHardwareAddr: Broadcast,
+				SourceHardwareAddr:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
 				VLAN: []*VLAN{
 					{
 						DropEligible: true,
@@ -184,9 +184,9 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 			desc: "0 VLANs detected, but 1 may have been present",
 			b:    bytes.Repeat([]byte{0}, 56),
 			f: &Frame{
-				DestinationMAC: net.HardwareAddr{0, 0, 0, 0, 0, 0},
-				SourceMAC:      net.HardwareAddr{0, 0, 0, 0, 0, 0},
-				Payload:        bytes.Repeat([]byte{0}, 42),
+				DestinationHardwareAddr: net.HardwareAddr{0, 0, 0, 0, 0, 0},
+				SourceHardwareAddr:      net.HardwareAddr{0, 0, 0, 0, 0, 0},
+				Payload:                 bytes.Repeat([]byte{0}, 42),
 			},
 		},
 		{
@@ -197,10 +197,10 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 				0x08, 0x00,
 			}, bytes.Repeat([]byte{0}, 50)...),
 			f: &Frame{
-				DestinationMAC: net.HardwareAddr{0, 1, 0, 1, 0, 1},
-				SourceMAC:      net.HardwareAddr{1, 0, 1, 0, 1, 0},
-				EtherType:      EtherTypeIPv4,
-				Payload:        bytes.Repeat([]byte{0}, 50),
+				DestinationHardwareAddr: net.HardwareAddr{0, 1, 0, 1, 0, 1},
+				SourceHardwareAddr:      net.HardwareAddr{1, 0, 1, 0, 1, 0},
+				EtherType:               EtherTypeIPv4,
+				Payload:                 bytes.Repeat([]byte{0}, 50),
 			},
 		},
 		{
@@ -213,8 +213,8 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 				0x86, 0xDD,
 			}, bytes.Repeat([]byte{0}, 50)...),
 			f: &Frame{
-				DestinationMAC: net.HardwareAddr{1, 0, 1, 0, 1, 0},
-				SourceMAC:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
+				DestinationHardwareAddr: net.HardwareAddr{1, 0, 1, 0, 1, 0},
+				SourceHardwareAddr:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
 				VLAN: []*VLAN{{
 					Priority: 1,
 					ID:       101,
@@ -235,8 +235,8 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 				0x08, 0x06,
 			}, bytes.Repeat([]byte{0}, 50)...),
 			f: &Frame{
-				DestinationMAC: Broadcast,
-				SourceMAC:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
+				DestinationHardwareAddr: Broadcast,
+				SourceHardwareAddr:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
 				VLAN: []*VLAN{
 					{
 						DropEligible: true,

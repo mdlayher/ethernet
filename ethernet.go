@@ -17,8 +17,8 @@ const (
 )
 
 var (
-	// Broadcast is a special MAC address which indicates a Frame should be
-	// sent to every device on a given LAN segment.
+	// Broadcast is a special hardware address which indicates a Frame should
+	// be sent to every device on a given LAN segment.
 	Broadcast = net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 )
 
@@ -38,18 +38,18 @@ const (
 )
 
 // A Frame is an IEEE 802.3 Ethernet II frame.  A Frame contains information
-// such as source and destination MAC addresses, zero or more optional 802.1Q
-// VLAN tags, an EtherType, and payload data.
+// such as source and destination hardware addresses, zero or more optional
+// 802.1Q VLAN tags, an EtherType, and payload data.
 type Frame struct {
-	// DestinationMAC specifies the destination MAC address for this Frame.
-	// If this address is set to Broadcast, the Frame will be sent to every
-	// device on a given LAN segment.
-	DestinationMAC net.HardwareAddr
+	// DestinationHardwareAddr specifies the destination hardware address for
+	// this Frame.  If this address is set to Broadcast, the Frame will be sent
+	// to every device on a given LAN segment.
+	DestinationHardwareAddr net.HardwareAddr
 
-	// SourceMAC specifies the source MAC address for this Frame.  Typically,
-	// this MAC address is the address of the network interface used to send
-	// this Frame.
-	SourceMAC net.HardwareAddr
+	// SourceHardwareAddr specifies the source hardware address for this Frame.
+	// Typically, this is the hardware address of the network interface used to
+	// send this Frame.
+	SourceHardwareAddr net.HardwareAddr
 
 	// VLAN specifies one or more optional 802.1Q VLAN tags, which may or may
 	// not be present in a Frame.  It is important to note that the operating
@@ -72,8 +72,8 @@ type Frame struct {
 // (greater than 7), or their IDs are too large (greater than 4094),
 // ErrInvalidVLAN is returned.
 func (f *Frame) MarshalBinary() ([]byte, error) {
-	// 6 bytes: destination MAC
-	// 6 bytes: source MAC
+	// 6 bytes: destination hardware address
+	// 6 bytes: source hardware address
 	// N bytes: 4 * N VLAN tags
 	// 2 bytes: EtherType
 	// N bytes: payload length (may be padded)
@@ -89,8 +89,8 @@ func (f *Frame) MarshalBinary() ([]byte, error) {
 
 	b := make([]byte, 6+6+(4*len(f.VLAN))+2+pl)
 
-	copy(b[0:6], f.DestinationMAC)
-	copy(b[6:12], f.SourceMAC)
+	copy(b[0:6], f.DestinationHardwareAddr)
+	copy(b[6:12], f.SourceHardwareAddr)
 
 	// Marshal each VLAN tag into bytes, inserting a VLAN EtherType value
 	// before each, so devices know that one or more VLANs are present.
@@ -124,18 +124,18 @@ func (f *Frame) MarshalBinary() ([]byte, error) {
 // If one or more VLANs are detected and their IDs are too large (greater than
 // 4094), ErrInvalidVLAN is returned.
 func (f *Frame) UnmarshalBinary(b []byte) error {
-	// Verify that both MAC addresses and a single EtherType are present
+	// Verify that both hardware addresses and a single EtherType are present
 	if len(b) < 14 {
 		return io.ErrUnexpectedEOF
 	}
 
 	dst := make(net.HardwareAddr, 6)
 	copy(dst, b[0:6])
-	f.DestinationMAC = dst
+	f.DestinationHardwareAddr = dst
 
 	src := make(net.HardwareAddr, 6)
 	copy(src, b[6:12])
-	f.SourceMAC = src
+	f.SourceHardwareAddr = src
 
 	// Track offset in packet for writing data
 	n := 14
