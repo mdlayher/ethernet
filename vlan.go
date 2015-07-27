@@ -107,7 +107,7 @@ func (v *VLAN) read(b []byte) (int, error) {
 	return 2, nil
 }
 
-// UnmarshalBinary unmarshals a byte slice into a Frame.
+// UnmarshalBinary unmarshals a byte slice into a VLAN.
 //
 // If the byte slice does not contain exactly 2 bytes of data,
 // io.ErrUnexpectedEOF is returned.
