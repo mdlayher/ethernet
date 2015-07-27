@@ -270,3 +270,134 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 		}
 	}
 }
+
+// Benchmarks for Frame.MarshalBinary with varying VLAN tags and payloads
+
+func BenchmarkFrameMarshalBinary(b *testing.B) {
+	f := &Frame{
+		Payload: []byte{0, 1, 2, 3, 4},
+	}
+
+	benchmarkFrameMarshalBinary(b, f)
+}
+
+func BenchmarkFrameMarshalBinaryOneVLAN(b *testing.B) {
+	f := &Frame{
+		VLAN: []*VLAN{
+			{
+				Priority: PriorityBackground,
+				ID:       10,
+			},
+		},
+		Payload: []byte{0, 1, 2, 3, 4},
+	}
+
+	benchmarkFrameMarshalBinary(b, f)
+}
+
+func BenchmarkFrameMarshalBinaryTwoVLANs(b *testing.B) {
+	f := &Frame{
+		VLAN: []*VLAN{
+			{
+				Priority: PriorityBackground,
+				ID:       10,
+			},
+			{
+				Priority: PriorityBestEffort,
+				ID:       20,
+			},
+		},
+		Payload: []byte{0, 1, 2, 3, 4},
+	}
+
+	benchmarkFrameMarshalBinary(b, f)
+}
+
+func BenchmarkFrameMarshalBinaryJumboPayload(b *testing.B) {
+	f := &Frame{
+		Payload: make([]byte, 8192),
+	}
+
+	benchmarkFrameMarshalBinary(b, f)
+}
+
+func benchmarkFrameMarshalBinary(b *testing.B, f *Frame) {
+	f.DestinationHardwareAddr = net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0xde, 0xad}
+	f.SourceHardwareAddr = net.HardwareAddr{0xad, 0xbe, 0xef, 0xde, 0xad, 0xde}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if _, err := f.MarshalBinary(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// Benchmarks for Frame.UnmarshalBinary with varying VLAN tags and payloads
+
+func BenchmarkFrameUnmarshalBinary(b *testing.B) {
+	f := &Frame{
+		Payload: []byte{0, 1, 2, 3, 4},
+	}
+
+	benchmarkFrameUnmarshalBinary(b, f)
+}
+
+func BenchmarkFrameUnmarshalBinaryOneVLAN(b *testing.B) {
+	f := &Frame{
+		VLAN: []*VLAN{
+			{
+				Priority: PriorityBackground,
+				ID:       10,
+			},
+		},
+		Payload: []byte{0, 1, 2, 3, 4},
+	}
+
+	benchmarkFrameUnmarshalBinary(b, f)
+}
+
+func BenchmarkFrameUnmarshalBinaryTwoVLANs(b *testing.B) {
+	f := &Frame{
+		VLAN: []*VLAN{
+			{
+				Priority: PriorityBackground,
+				ID:       10,
+			},
+			{
+				Priority: PriorityBestEffort,
+				ID:       20,
+			},
+		},
+		Payload: []byte{0, 1, 2, 3, 4},
+	}
+
+	benchmarkFrameUnmarshalBinary(b, f)
+}
+
+func BenchmarkFrameUnmarshalBinaryJumboPayload(b *testing.B) {
+	f := &Frame{
+		Payload: make([]byte, 8192),
+	}
+
+	benchmarkFrameUnmarshalBinary(b, f)
+}
+
+func benchmarkFrameUnmarshalBinary(b *testing.B, f *Frame) {
+	f.DestinationHardwareAddr = net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0xde, 0xad}
+	f.SourceHardwareAddr = net.HardwareAddr{0xad, 0xbe, 0xef, 0xde, 0xad, 0xde}
+
+	fb, err := f.MarshalBinary()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if err := f.UnmarshalBinary(fb); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
