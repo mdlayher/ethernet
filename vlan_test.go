@@ -125,3 +125,42 @@ func TestVLANUnmarshalBinary(t *testing.T) {
 		}
 	}
 }
+
+// Benchmarks for VLAN.MarshalBinary
+
+func BenchmarkVLANMarshalBinary(b *testing.B) {
+	v := &VLAN{
+		Priority: PriorityBackground,
+		ID:       10,
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if _, err := v.MarshalBinary(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// Benchmarks for VLAN.UnmarshalBinary
+
+func BenchmarkVLANUnmarshalBinary(b *testing.B) {
+	v := &VLAN{
+		Priority: PriorityBestEffort,
+		ID:       20,
+	}
+
+	vb, err := v.MarshalBinary()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if err := v.UnmarshalBinary(vb); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
