@@ -72,14 +72,22 @@ type VLAN struct {
 // If a VLAN priority is too large (greater than 7), or a VLAN ID is too large
 // (greater than 4094), ErrInvalidVLAN is returned.
 func (v *VLAN) MarshalBinary() ([]byte, error) {
+	b := make([]byte, 2)
+	_, err := v.read(b)
+	return b, err
+}
+
+// read reads data from a VLAN into b.  read is used to marshal a VLAN into
+// binary form, but does not allocate on its own.
+func (v *VLAN) read(b []byte) (int, error) {
 	// Check for VLAN priority in valid range
 	if v.Priority > PriorityNetworkControl {
-		return nil, ErrInvalidVLAN
+		return 0, ErrInvalidVLAN
 	}
 
 	// Check for VLAN ID in valid range
 	if v.ID >= VLANMax {
-		return nil, ErrInvalidVLAN
+		return 0, ErrInvalidVLAN
 	}
 
 	// 3 bits: priority
@@ -95,10 +103,8 @@ func (v *VLAN) MarshalBinary() ([]byte, error) {
 	// 12 bits: VLAN ID
 	ub |= v.ID
 
-	b := make([]byte, 2)
 	binary.BigEndian.PutUint16(b, ub)
-
-	return b, nil
+	return 2, nil
 }
 
 // UnmarshalBinary unmarshals a byte slice into a Frame.

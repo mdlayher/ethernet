@@ -96,15 +96,13 @@ func (f *Frame) MarshalBinary() ([]byte, error) {
 	// before each, so devices know that one or more VLANs are present.
 	n := 12
 	for _, v := range f.VLAN {
-		// If VLAN contains any invalid values, an error will be returned here
-		vb, err := v.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-
 		// Add VLAN EtherType and VLAN bytes
 		binary.BigEndian.PutUint16(b[n:n+2], uint16(EtherTypeVLAN))
-		copy(b[n+2:n+4], vb)
+
+		// If VLAN contains any invalid values, an error will be returned here
+		if _, err := v.read(b[n+2 : n+4]); err != nil {
+			return nil, err
+		}
 		n += 4
 	}
 
