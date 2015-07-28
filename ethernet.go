@@ -142,8 +142,8 @@ func (f *Frame) UnmarshalBinary(b []byte) error {
 	// values are detected
 	et := EtherType(binary.BigEndian.Uint16(b[n-2 : n]))
 	for ; et == EtherTypeVLAN; n += 4 {
-		// 2 or more bytes must remain for valid VLAN tag
-		if len(b[n:]) < 2 {
+		// 4 or more bytes must remain for valid VLAN tag and EtherType
+		if len(b[n:]) < 4 {
 			return io.ErrUnexpectedEOF
 		}
 
