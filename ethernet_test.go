@@ -132,11 +132,6 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 			err:  io.ErrUnexpectedEOF,
 		},
 		{
-			desc: "short payload, no VLANs",
-			b:    bytes.Repeat([]byte{0}, 45),
-			err:  io.ErrUnexpectedEOF,
-		},
-		{
 			desc: "1 short VLAN",
 			b: []byte{
 				0, 0, 0, 0, 0, 0,
@@ -156,30 +151,6 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 				0x00, 0x00,
 			},
 			err: ErrInvalidVLAN,
-		},
-		{
-			desc: "short payload, 1 VLAN",
-			b: append([]byte{
-				0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0,
-				0x81, 0x00,
-				0x00, 0x00,
-				0x00, 0x00,
-			}, bytes.Repeat([]byte{0}, 41)...),
-			err: io.ErrUnexpectedEOF,
-		},
-		{
-			desc: "short payload, 2 VLANs",
-			b: append([]byte{
-				0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0,
-				0x81, 0x00,
-				0x00, 0x00,
-				0x81, 0x00,
-				0x00, 0x00,
-				0x00, 0x00,
-			}, bytes.Repeat([]byte{0}, 37)...),
-			err: io.ErrUnexpectedEOF,
 		},
 		{
 			desc: "go-fuzz crasher: VLAN tag without enough bytes for trailing EtherType",
