@@ -41,15 +41,17 @@ const (
 // such as source and destination hardware addresses, zero or more optional
 // 802.1Q VLAN tags, an EtherType, and payload data.
 type Frame struct {
-	// DestinationHardwareAddr specifies the destination hardware address for
-	// this Frame.  If this address is set to Broadcast, the Frame will be sent
-	// to every device on a given LAN segment.
-	DestinationHardwareAddr net.HardwareAddr
+	// Destination specifies the destination hardware address for this Frame.
+	//
+	// If this address is set to Broadcast, the Frame will be sent to every
+	// device on a given LAN segment.
+	Destination net.HardwareAddr
 
-	// SourceHardwareAddr specifies the source hardware address for this Frame.
+	// Source specifies the source hardware address for this Frame.
+	//
 	// Typically, this is the hardware address of the network interface used to
 	// send this Frame.
-	SourceHardwareAddr net.HardwareAddr
+	Source net.HardwareAddr
 
 	// VLAN specifies one or more optional 802.1Q VLAN tags, which may or may
 	// not be present in a Frame.  It is important to note that the operating
@@ -89,8 +91,8 @@ func (f *Frame) MarshalBinary() ([]byte, error) {
 
 	b := make([]byte, 6+6+(4*len(f.VLAN))+2+pl)
 
-	copy(b[0:6], f.DestinationHardwareAddr)
-	copy(b[6:12], f.SourceHardwareAddr)
+	copy(b[0:6], f.Destination)
+	copy(b[6:12], f.Source)
 
 	// Marshal each VLAN tag into bytes, inserting a VLAN EtherType value
 	// before each, so devices know that one or more VLANs are present.
@@ -129,11 +131,11 @@ func (f *Frame) UnmarshalBinary(b []byte) error {
 
 	dst := make(net.HardwareAddr, 6)
 	copy(dst, b[0:6])
-	f.DestinationHardwareAddr = dst
+	f.Destination = dst
 
 	src := make(net.HardwareAddr, 6)
 	copy(src, b[6:12])
-	f.SourceHardwareAddr = src
+	f.Source = src
 
 	// Track offset in packet for writing data
 	n := 14

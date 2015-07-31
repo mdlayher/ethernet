@@ -36,10 +36,10 @@ func TestFrameMarshalBinary(t *testing.T) {
 		{
 			desc: "IPv4, no VLANs",
 			f: &Frame{
-				DestinationHardwareAddr: net.HardwareAddr{0, 1, 0, 1, 0, 1},
-				SourceHardwareAddr:      net.HardwareAddr{1, 0, 1, 0, 1, 0},
-				EtherType:               EtherTypeIPv4,
-				Payload:                 bytes.Repeat([]byte{0}, 50),
+				Destination: net.HardwareAddr{0, 1, 0, 1, 0, 1},
+				Source:      net.HardwareAddr{1, 0, 1, 0, 1, 0},
+				EtherType:   EtherTypeIPv4,
+				Payload:     bytes.Repeat([]byte{0}, 50),
 			},
 			b: append([]byte{
 				0, 1, 0, 1, 0, 1,
@@ -50,8 +50,8 @@ func TestFrameMarshalBinary(t *testing.T) {
 		{
 			desc: "IPv6, 1 VLAN: PRI 1, ID 101",
 			f: &Frame{
-				DestinationHardwareAddr: net.HardwareAddr{1, 0, 1, 0, 1, 0},
-				SourceHardwareAddr:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
+				Destination: net.HardwareAddr{1, 0, 1, 0, 1, 0},
+				Source:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
 				VLAN: []*VLAN{{
 					Priority: 1,
 					ID:       101,
@@ -70,8 +70,8 @@ func TestFrameMarshalBinary(t *testing.T) {
 		{
 			desc: "ARP, 2 VLANs: (PRI 0, DROP, ID 100) (PRI 1, ID 101)",
 			f: &Frame{
-				DestinationHardwareAddr: Broadcast,
-				SourceHardwareAddr:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
+				Destination: Broadcast,
+				Source:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
 				VLAN: []*VLAN{
 					{
 						DropEligible: true,
@@ -161,9 +161,9 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 			desc: "0 VLANs detected, but 1 may have been present",
 			b:    bytes.Repeat([]byte{0}, 56),
 			f: &Frame{
-				DestinationHardwareAddr: net.HardwareAddr{0, 0, 0, 0, 0, 0},
-				SourceHardwareAddr:      net.HardwareAddr{0, 0, 0, 0, 0, 0},
-				Payload:                 bytes.Repeat([]byte{0}, 42),
+				Destination: net.HardwareAddr{0, 0, 0, 0, 0, 0},
+				Source:      net.HardwareAddr{0, 0, 0, 0, 0, 0},
+				Payload:     bytes.Repeat([]byte{0}, 42),
 			},
 		},
 		{
@@ -174,10 +174,10 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 				0x08, 0x00,
 			}, bytes.Repeat([]byte{0}, 50)...),
 			f: &Frame{
-				DestinationHardwareAddr: net.HardwareAddr{0, 1, 0, 1, 0, 1},
-				SourceHardwareAddr:      net.HardwareAddr{1, 0, 1, 0, 1, 0},
-				EtherType:               EtherTypeIPv4,
-				Payload:                 bytes.Repeat([]byte{0}, 50),
+				Destination: net.HardwareAddr{0, 1, 0, 1, 0, 1},
+				Source:      net.HardwareAddr{1, 0, 1, 0, 1, 0},
+				EtherType:   EtherTypeIPv4,
+				Payload:     bytes.Repeat([]byte{0}, 50),
 			},
 		},
 		{
@@ -190,8 +190,8 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 				0x86, 0xDD,
 			}, bytes.Repeat([]byte{0}, 50)...),
 			f: &Frame{
-				DestinationHardwareAddr: net.HardwareAddr{1, 0, 1, 0, 1, 0},
-				SourceHardwareAddr:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
+				Destination: net.HardwareAddr{1, 0, 1, 0, 1, 0},
+				Source:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
 				VLAN: []*VLAN{{
 					Priority: 1,
 					ID:       101,
@@ -212,8 +212,8 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 				0x08, 0x06,
 			}, bytes.Repeat([]byte{0}, 50)...),
 			f: &Frame{
-				DestinationHardwareAddr: Broadcast,
-				SourceHardwareAddr:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
+				Destination: Broadcast,
+				Source:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
 				VLAN: []*VLAN{
 					{
 						DropEligible: true,
@@ -299,8 +299,8 @@ func BenchmarkFrameMarshalBinaryJumboPayload(b *testing.B) {
 }
 
 func benchmarkFrameMarshalBinary(b *testing.B, f *Frame) {
-	f.DestinationHardwareAddr = net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0xde, 0xad}
-	f.SourceHardwareAddr = net.HardwareAddr{0xad, 0xbe, 0xef, 0xde, 0xad, 0xde}
+	f.Destination = net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0xde, 0xad}
+	f.Source = net.HardwareAddr{0xad, 0xbe, 0xef, 0xde, 0xad, 0xde}
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -362,8 +362,8 @@ func BenchmarkFrameUnmarshalBinaryJumboPayload(b *testing.B) {
 }
 
 func benchmarkFrameUnmarshalBinary(b *testing.B, f *Frame) {
-	f.DestinationHardwareAddr = net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0xde, 0xad}
-	f.SourceHardwareAddr = net.HardwareAddr{0xad, 0xbe, 0xef, 0xde, 0xad, 0xde}
+	f.Destination = net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0xde, 0xad}
+	f.Source = net.HardwareAddr{0xad, 0xbe, 0xef, 0xde, 0xad, 0xde}
 
 	fb, err := f.MarshalBinary()
 	if err != nil {
