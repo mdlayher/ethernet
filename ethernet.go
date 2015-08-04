@@ -129,15 +129,7 @@ func (f *Frame) UnmarshalBinary(b []byte) error {
 		return io.ErrUnexpectedEOF
 	}
 
-	dst := make(net.HardwareAddr, 6)
-	copy(dst, b[0:6])
-	f.Destination = dst
-
-	src := make(net.HardwareAddr, 6)
-	copy(src, b[6:12])
-	f.Source = src
-
-	// Track offset in packet for writing data
+	// Track offset in packet for reading data
 	n := 14
 
 	// Continue looping and parsing VLAN tags until no more VLAN EtherType
@@ -162,13 +154,20 @@ func (f *Frame) UnmarshalBinary(b []byte) error {
 	}
 	f.EtherType = et
 
+	// Allocate single byte slice to store destination and source hardware
+	// addresses, and payload
+	bb := make([]byte, 6+6+len(b[n:]))
+	copy(bb[0:6], b[0:6])
+	f.Destination = bb[0:6]
+	copy(bb[6:12], b[6:12])
+	f.Source = bb[6:12]
+
 	// There used to be a minimum payload length restriction here, but as
 	// long as two hardware addresses and an EtherType are present, it
 	// doesn't really matter what is contained in the payload.  We will
 	// follow the "robustness principle".
-	payload := make([]byte, len(b[n:]))
-	copy(payload, b[n:])
-	f.Payload = payload
+	copy(bb[12:], b[n:])
+	f.Payload = bb[12:]
 
 	return nil
 }
