@@ -12,5 +12,13 @@ func Fuzz(data []byte) int {
 		panic(err)
 	}
 
+	if err := f.UnmarshalFCS(data); err != nil {
+		return 0
+	}
+
+	if _, err := f.MarshalFCS(); err != nil {
+		panic(err)
+	}
+
 	return 1
 }

@@ -45,7 +45,7 @@ func TestFrameMarshalBinary(t *testing.T) {
 				0, 1, 0, 1, 0, 1,
 				1, 0, 1, 0, 1, 0,
 				0x08, 0x00,
-			}, bytes.Repeat([]byte{0}, 50)...),
+			}, bytes.Repeat([]byte{0}, 54)...),
 		},
 		{
 			desc: "IPv6, 1 VLAN: PRI 1, ID 101",
@@ -65,7 +65,7 @@ func TestFrameMarshalBinary(t *testing.T) {
 				0x81, 0x00,
 				0x20, 0x65,
 				0x86, 0xDD,
-			}, bytes.Repeat([]byte{0}, 50)...),
+			}, bytes.Repeat([]byte{0}, 54)...),
 		},
 		{
 			desc: "ARP, 2 VLANs: (PRI 0, DROP, ID 100) (PRI 1, ID 101)",
@@ -93,12 +93,68 @@ func TestFrameMarshalBinary(t *testing.T) {
 				0x81, 0x00,
 				0x20, 0x65,
 				0x08, 0x06,
-			}, bytes.Repeat([]byte{0}, 50)...),
+			}, bytes.Repeat([]byte{0}, 54)...),
 		},
 	}
 
 	for i, tt := range tests {
 		b, err := tt.f.MarshalBinary()
+		if err != nil {
+			if want, got := tt.err, err; want != got {
+				t.Fatalf("[%02d] test %q, unexpected error: %v != %v",
+					i, tt.desc, want, got)
+			}
+
+			continue
+		}
+
+		if want, got := tt.b, b; !bytes.Equal(want, got) {
+			t.Fatalf("[%02d] test %q, unexpected Frame bytes:\n- want: %v\n-  got: %v",
+				i, tt.desc, want, got)
+		}
+	}
+}
+
+func TestFrameMarshalFCS(t *testing.T) {
+	var tests = []struct {
+		desc string
+		f    *Frame
+		b    []byte
+		err  error
+	}{
+		{
+			desc: "VLAN priority too large",
+			f: &Frame{
+				VLAN: []*VLAN{{
+					Priority: 8,
+				}},
+			},
+			err: ErrInvalidVLAN,
+		},
+		{
+			desc: "IPv4, no VLANs",
+			f: &Frame{
+				Destination: net.HardwareAddr{0, 1, 0, 1, 0, 1},
+				Source:      net.HardwareAddr{1, 0, 1, 0, 1, 0},
+				EtherType:   EtherTypeIPv4,
+				Payload:     bytes.Repeat([]byte{0}, 50),
+			},
+			b: append(
+				append(
+					[]byte{
+						0, 1, 0, 1, 0, 1,
+						1, 0, 1, 0, 1, 0,
+						0x08, 0x00,
+					},
+					bytes.Repeat([]byte{0}, 50)...,
+				),
+				[]byte{159, 205, 24, 60}...,
+			),
+		},
+	}
+
+	for i, tt := range tests {
+		b, err := tt.f.MarshalFCS()
 		if err != nil {
 			if want, got := tt.err, err; want != got {
 				t.Fatalf("[%02d] test %q, unexpected error: %v != %v",
@@ -248,6 +304,63 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 	}
 }
 
+func TestFrameUnmarshalFCS(t *testing.T) {
+	var tests = []struct {
+		desc string
+		b    []byte
+		f    *Frame
+		err  error
+	}{
+		{
+			desc: "too short for FCS",
+			b:    []byte{1, 2, 3},
+			err:  io.ErrUnexpectedEOF,
+		},
+		{
+			desc: "invalid FCS",
+			b:    []byte{1, 2, 3, 4},
+			err:  ErrInvalidFCS,
+		},
+		{
+			desc: "IPv4, no VLANs",
+			b: append(
+				append(
+					[]byte{
+						0, 1, 0, 1, 0, 1,
+						1, 0, 1, 0, 1, 0,
+						0x08, 0x00,
+					},
+					bytes.Repeat([]byte{0}, 50)...,
+				),
+				[]byte{159, 205, 24, 60}...,
+			),
+			f: &Frame{
+				Destination: net.HardwareAddr{0, 1, 0, 1, 0, 1},
+				Source:      net.HardwareAddr{1, 0, 1, 0, 1, 0},
+				EtherType:   EtherTypeIPv4,
+				Payload:     bytes.Repeat([]byte{0}, 50),
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		f := new(Frame)
+		if err := f.UnmarshalFCS(tt.b); err != nil {
+			if want, got := tt.err, err; want != got {
+				t.Fatalf("[%02d] test %q, unexpected error: %v != %v",
+					i, tt.desc, want, got)
+			}
+
+			continue
+		}
+
+		if want, got := tt.f, f; !reflect.DeepEqual(want, got) {
+			t.Fatalf("[%02d] test %q, unexpected Frame:\n- want: %v\n-  got: %v",
+				i, tt.desc, want, got)
+		}
+	}
+}
+
 // Benchmarks for Frame.MarshalBinary with varying VLAN tags and payloads
 
 func BenchmarkFrameMarshalBinary(b *testing.B) {
@@ -306,6 +419,29 @@ func benchmarkFrameMarshalBinary(b *testing.B, f *Frame) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		if _, err := f.MarshalBinary(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// Benchmarks for Frame.MarshalFCS
+
+func BenchmarkFrameMarshalFCS(b *testing.B) {
+	f := &Frame{
+		Payload: []byte{0, 1, 2, 3, 4},
+	}
+
+	benchmarkFrameMarshalFCS(b, f)
+}
+
+func benchmarkFrameMarshalFCS(b *testing.B, f *Frame) {
+	f.Destination = net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0xde, 0xad}
+	f.Source = net.HardwareAddr{0xad, 0xbe, 0xef, 0xde, 0xad, 0xde}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if _, err := f.MarshalFCS(); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -374,6 +510,34 @@ func benchmarkFrameUnmarshalBinary(b *testing.B, f *Frame) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		if err := f.UnmarshalBinary(fb); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// Benchmarks for Frame.UnmarshalFCS
+
+func BenchmarkFrameUnmarshalFCS(b *testing.B) {
+	f := &Frame{
+		Payload: []byte{0, 1, 2, 3, 4},
+	}
+
+	benchmarkFrameUnmarshalFCS(b, f)
+}
+
+func benchmarkFrameUnmarshalFCS(b *testing.B, f *Frame) {
+	f.Destination = net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0xde, 0xad}
+	f.Source = net.HardwareAddr{0xad, 0xbe, 0xef, 0xde, 0xad, 0xde}
+
+	fb, err := f.MarshalFCS()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if err := f.UnmarshalFCS(fb); err != nil {
 			b.Fatal(err)
 		}
 	}

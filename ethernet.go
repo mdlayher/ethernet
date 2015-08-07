@@ -4,6 +4,8 @@ package ethernet
 
 import (
 	"encoding/binary"
+	"errors"
+	"hash/crc32"
 	"io"
 	"net"
 )
@@ -20,6 +22,12 @@ var (
 	// Broadcast is a special hardware address which indicates a Frame should
 	// be sent to every device on a given LAN segment.
 	Broadcast = net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+)
+
+var (
+	// ErrInvalidFCS is returned when Frame.UnmarshalFCS detects an incorrect
+	// Ethernet frame check sequence in a byte slice for a Frame.
+	ErrInvalidFCS = errors.New("invalid frame check sequence")
 )
 
 // An EtherType is a value used to identify an upper layer protocol
@@ -79,8 +87,7 @@ func (f *Frame) MarshalBinary() ([]byte, error) {
 	// N bytes: 4 * N VLAN tags
 	// 2 bytes: EtherType
 	// N bytes: payload length (may be padded)
-	//
-	// We let the operating system handle the checksum and the interpacket gap
+	// 4 bytes: checksum (allocated, but not added unless MarshalFCS is used)
 
 	// If payload is less than the required minimum length, we zero-pad up to
 	// the required minimum length
@@ -89,7 +96,7 @@ func (f *Frame) MarshalBinary() ([]byte, error) {
 		pl = minPayload
 	}
 
-	b := make([]byte, 6+6+(4*len(f.VLAN))+2+pl)
+	b := make([]byte, 6+6+(4*len(f.VLAN))+2+pl+4)
 
 	copy(b[0:6], f.Destination)
 	copy(b[6:12], f.Source)
@@ -113,6 +120,30 @@ func (f *Frame) MarshalBinary() ([]byte, error) {
 	binary.BigEndian.PutUint16(b[n:n+2], uint16(f.EtherType))
 	copy(b[n+2:], f.Payload)
 
+	return b, nil
+}
+
+// MarshalFCS allocates a byte slice, marshals a Frame into binary form, and
+// finally calculates and places a 4-byte IEEE CRC32 frame check sequence at
+// the end of the slice.
+//
+// Most users should use MarshalBinary instead.  MarshalFCS is provided as a
+// convenience for rare occasions when the operating system cannot
+// automatically generate a frame check sequence for an Ethernet frame.
+//
+// If one or more VLANs are set and their priority values are too large
+// (greater than 7), or their IDs are too large (greater than 4094),
+// ErrInvalidVLAN is returned.
+func (f *Frame) MarshalFCS() ([]byte, error) {
+	// Marshal Frame with empty four byte sequence at the end
+	b, err := f.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	// Compute IEEE CRC32 checksum of frame bytes and place it directly
+	// in the last four bytes of the slice
+	binary.BigEndian.PutUint32(b[len(b)-4:], crc32.ChecksumIEEE(b[0:len(b)-4]))
 	return b, nil
 }
 
@@ -170,4 +201,36 @@ func (f *Frame) UnmarshalBinary(b []byte) error {
 	f.Payload = bb[12:]
 
 	return nil
+}
+
+// UnmarshalFCS computes the IEEE CRC32 frame check sequence of a Frame,
+// verifies it against the checksum present in the byte slice, and finally,
+// unmarshals a byte slice into a Frame.
+//
+// Most users should use UnmarshalBinary instead.  UnmarshalFCS is provided as
+// a convenience for rare occasions when the operating system cannot
+// automatically verify a frame check sequence for an Ethernet frame.
+//
+// If the frame check sequence present in the byte slice does not match the one
+// computed by UnmarshalFCS, ErrInvalidFCS is returned.
+//
+// If the byte slice does not contain enough data to unmarshal a valid Frame,
+// io.ErrUnexpectedEOF is returned.
+//
+// If one or more VLANs are detected and their IDs are too large (greater than
+// 4094), ErrInvalidVLAN is returned.
+func (f *Frame) UnmarshalFCS(b []byte) error {
+	// Must contain enough data for FCS, to avoid panics
+	if len(b) < 4 {
+		return io.ErrUnexpectedEOF
+	}
+
+	// Verify checksum in slice versus newly computed checksum
+	want := binary.BigEndian.Uint32(b[len(b)-4:])
+	got := crc32.ChecksumIEEE(b[0 : len(b)-4])
+	if want != got {
+		return ErrInvalidFCS
+	}
+
+	return f.UnmarshalBinary(b[0 : len(b)-4])
 }
