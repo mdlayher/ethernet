@@ -82,45 +82,9 @@ type Frame struct {
 // (greater than 7), or their IDs are too large (greater than 4094),
 // ErrInvalidVLAN is returned.
 func (f *Frame) MarshalBinary() ([]byte, error) {
-	// 6 bytes: destination hardware address
-	// 6 bytes: source hardware address
-	// N bytes: 4 * N VLAN tags
-	// 2 bytes: EtherType
-	// N bytes: payload length (may be padded)
-	// 4 bytes: checksum (allocated, but not added unless MarshalFCS is used)
-
-	// If payload is less than the required minimum length, we zero-pad up to
-	// the required minimum length
-	pl := len(f.Payload)
-	if pl < minPayload {
-		pl = minPayload
-	}
-
-	b := make([]byte, 6+6+(4*len(f.VLAN))+2+pl+4)
-
-	copy(b[0:6], f.Destination)
-	copy(b[6:12], f.Source)
-
-	// Marshal each VLAN tag into bytes, inserting a VLAN EtherType value
-	// before each, so devices know that one or more VLANs are present.
-	n := 12
-	for _, v := range f.VLAN {
-		// Add VLAN EtherType and VLAN bytes
-		binary.BigEndian.PutUint16(b[n:n+2], uint16(EtherTypeVLAN))
-
-		// If VLAN contains any invalid values, an error will be returned here
-		if _, err := v.read(b[n+2 : n+4]); err != nil {
-			return nil, err
-		}
-		n += 4
-	}
-
-	// Marshal actual EtherType after any VLANs, copy payload into
-	// output bytes.
-	binary.BigEndian.PutUint16(b[n:n+2], uint16(f.EtherType))
-	copy(b[n+2:], f.Payload)
-
-	return b, nil
+	b := make([]byte, f.length())
+	_, err := f.read(b)
+	return b, err
 }
 
 // MarshalFCS allocates a byte slice, marshals a Frame into binary form, and
@@ -135,9 +99,9 @@ func (f *Frame) MarshalBinary() ([]byte, error) {
 // (greater than 7), or their IDs are too large (greater than 4094),
 // ErrInvalidVLAN is returned.
 func (f *Frame) MarshalFCS() ([]byte, error) {
-	// Marshal Frame with empty four byte sequence at the end
-	b, err := f.MarshalBinary()
-	if err != nil {
+	// Frame length with 4 extra bytes for frame check sequence
+	b := make([]byte, f.length()+4)
+	if _, err := f.read(b); err != nil {
 		return nil, err
 	}
 
@@ -145,6 +109,34 @@ func (f *Frame) MarshalFCS() ([]byte, error) {
 	// in the last four bytes of the slice
 	binary.BigEndian.PutUint32(b[len(b)-4:], crc32.ChecksumIEEE(b[0:len(b)-4]))
 	return b, nil
+}
+
+// read reads data from a Frame into b.  read is used to marshal a Frame
+// into binary form, but does not allocate on its own.
+func (f *Frame) read(b []byte) (int, error) {
+	copy(b[0:6], f.Destination)
+	copy(b[6:12], f.Source)
+
+	// Marshal each VLAN tag into bytes, inserting a VLAN EtherType value
+	// before each, so devices know that one or more VLANs are present.
+	n := 12
+	for _, v := range f.VLAN {
+		// Add VLAN EtherType and VLAN bytes
+		binary.BigEndian.PutUint16(b[n:n+2], uint16(EtherTypeVLAN))
+
+		// If VLAN contains any invalid values, an error will be returned here
+		if _, err := v.read(b[n+2 : n+4]); err != nil {
+			return 0, err
+		}
+		n += 4
+	}
+
+	// Marshal actual EtherType after any VLANs, copy payload into
+	// output bytes.
+	binary.BigEndian.PutUint16(b[n:n+2], uint16(f.EtherType))
+	copy(b[n+2:], f.Payload)
+
+	return len(b), nil
 }
 
 // UnmarshalBinary unmarshals a byte slice into a Frame.
@@ -233,4 +225,21 @@ func (f *Frame) UnmarshalFCS(b []byte) error {
 	}
 
 	return f.UnmarshalBinary(b[0 : len(b)-4])
+}
+
+// length calculates the number of bytes required to store a Frame.
+func (f *Frame) length() int {
+	// If payload is less than the required minimum length, we zero-pad up to
+	// the required minimum length
+	pl := len(f.Payload)
+	if pl < minPayload {
+		pl = minPayload
+	}
+
+	// 6 bytes: destination hardware address
+	// 6 bytes: source hardware address
+	// N bytes: 4 * N VLAN tags
+	// 2 bytes: EtherType
+	// N bytes: payload length (may be padded)
+	return 6 + 6 + (4 * len(f.VLAN)) + 2 + pl
 }

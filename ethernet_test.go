@@ -45,7 +45,7 @@ func TestFrameMarshalBinary(t *testing.T) {
 				0, 1, 0, 1, 0, 1,
 				1, 0, 1, 0, 1, 0,
 				0x08, 0x00,
-			}, bytes.Repeat([]byte{0}, 54)...),
+			}, bytes.Repeat([]byte{0}, 50)...),
 		},
 		{
 			desc: "IPv6, 1 VLAN: PRI 1, ID 101",
@@ -65,7 +65,7 @@ func TestFrameMarshalBinary(t *testing.T) {
 				0x81, 0x00,
 				0x20, 0x65,
 				0x86, 0xDD,
-			}, bytes.Repeat([]byte{0}, 54)...),
+			}, bytes.Repeat([]byte{0}, 50)...),
 		},
 		{
 			desc: "ARP, 2 VLANs: (PRI 0, DROP, ID 100) (PRI 1, ID 101)",
@@ -93,7 +93,7 @@ func TestFrameMarshalBinary(t *testing.T) {
 				0x81, 0x00,
 				0x20, 0x65,
 				0x08, 0x06,
-			}, bytes.Repeat([]byte{0}, 54)...),
+			}, bytes.Repeat([]byte{0}, 50)...),
 		},
 	}
 
