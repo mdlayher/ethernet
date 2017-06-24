@@ -51,21 +51,21 @@ func TestVLANMarshalBinary(t *testing.T) {
 		},
 	}
 
-	for i, tt := range tests {
-		b, err := tt.v.MarshalBinary()
-		if err != nil {
-			if want, got := tt.err, err; want != got {
-				t.Fatalf("[%02d] test %q, unexpected error: %v != %v",
-					i, tt.desc, want, got)
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			b, err := tt.v.MarshalBinary()
+			if err != nil {
+				if want, got := tt.err, err; want != got {
+					t.Fatalf("unexpected error: %v != %v", want, got)
+				}
+
+				return
 			}
 
-			continue
-		}
-
-		if want, got := tt.b, b; !bytes.Equal(want, got) {
-			t.Fatalf("[%02d] test %q, unexpected VLAN bytes:\n- want: %v\n-  got: %v",
-				i, tt.desc, want, got)
-		}
+			if want, got := tt.b, b; !bytes.Equal(want, got) {
+				t.Fatalf("unexpected VLAN bytes:\n- want: %v\n-  got: %v", want, got)
+			}
+		})
 	}
 }
 
@@ -108,21 +108,21 @@ func TestVLANUnmarshalBinary(t *testing.T) {
 		},
 	}
 
-	for i, tt := range tests {
-		v := new(VLAN)
-		if err := v.UnmarshalBinary(tt.b); err != nil {
-			if want, got := tt.err, err; want != got {
-				t.Fatalf("[%02d] test %q, unexpected error: %v != %v",
-					i, tt.desc, want, got)
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			v := new(VLAN)
+			if err := v.UnmarshalBinary(tt.b); err != nil {
+				if want, got := tt.err, err; want != got {
+					t.Fatalf("unexpected error: %v != %v", want, got)
+				}
+
+				return
 			}
 
-			continue
-		}
-
-		if want, got := tt.v, v; !reflect.DeepEqual(want, got) {
-			t.Fatalf("[%02d] test %q, unexpected VLAN:\n- want: %v\n-  got: %v",
-				i, tt.desc, want, got)
-		}
+			if want, got := tt.v, v; !reflect.DeepEqual(want, got) {
+				t.Fatalf("unexpected VLAN:\n- want: %v\n-  got: %v", want, got)
+			}
+		})
 	}
 }
 
