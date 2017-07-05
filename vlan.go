@@ -69,9 +69,6 @@ type VLAN struct {
 }
 
 // MarshalBinary allocates a byte slice and marshals a VLAN into binary form.
-//
-// If a VLAN priority is too large (greater than 7), or a VLAN ID is too large
-// (greater than 4094), ErrInvalidVLAN is returned.
 func (v *VLAN) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 2)
 	_, err := v.read(b)
@@ -109,11 +106,6 @@ func (v *VLAN) read(b []byte) (int, error) {
 }
 
 // UnmarshalBinary unmarshals a byte slice into a VLAN.
-//
-// If the byte slice does not contain exactly 2 bytes of data,
-// io.ErrUnexpectedEOF is returned.
-//
-// If a VLAN ID is too large (greater than 4094), ErrInvalidVLAN is returned.
 func (v *VLAN) UnmarshalBinary(b []byte) error {
 	// VLAN tag is always 2 bytes
 	if len(b) != 2 {

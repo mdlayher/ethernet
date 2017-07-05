@@ -87,10 +87,6 @@ type Frame struct {
 }
 
 // MarshalBinary allocates a byte slice and marshals a Frame into binary form.
-//
-// If one or more VLANs are set and their priority values are too large
-// (greater than 7), or their IDs are too large (greater than 4094),
-// ErrInvalidVLAN is returned.
 func (f *Frame) MarshalBinary() ([]byte, error) {
 	b := make([]byte, f.length())
 	_, err := f.read(b)
@@ -104,10 +100,6 @@ func (f *Frame) MarshalBinary() ([]byte, error) {
 // Most users should use MarshalBinary instead.  MarshalFCS is provided as a
 // convenience for rare occasions when the operating system cannot
 // automatically generate a frame check sequence for an Ethernet frame.
-//
-// If one or more VLANs are set and their priority values are too large
-// (greater than 7), or their IDs are too large (greater than 4094),
-// ErrInvalidVLAN is returned.
 func (f *Frame) MarshalFCS() ([]byte, error) {
 	// Frame length with 4 extra bytes for frame check sequence
 	b := make([]byte, f.length()+4)
@@ -166,12 +158,6 @@ func (f *Frame) read(b []byte) (int, error) {
 }
 
 // UnmarshalBinary unmarshals a byte slice into a Frame.
-//
-// If the byte slice does not contain enough data to unmarshal a valid Frame,
-// io.ErrUnexpectedEOF is returned.
-//
-// If one or more VLANs are detected and their IDs are too large (greater than
-// 4094), ErrInvalidVLAN is returned.
 func (f *Frame) UnmarshalBinary(b []byte) error {
 	// Verify that both hardware addresses and a single EtherType are present
 	if len(b) < 14 {
@@ -224,15 +210,6 @@ func (f *Frame) UnmarshalBinary(b []byte) error {
 // Most users should use UnmarshalBinary instead.  UnmarshalFCS is provided as
 // a convenience for rare occasions when the operating system cannot
 // automatically verify a frame check sequence for an Ethernet frame.
-//
-// If the frame check sequence present in the byte slice does not match the one
-// computed by UnmarshalFCS, ErrInvalidFCS is returned.
-//
-// If the byte slice does not contain enough data to unmarshal a valid Frame,
-// io.ErrUnexpectedEOF is returned.
-//
-// If one or more VLANs are detected and their IDs are too large (greater than
-// 4094), ErrInvalidVLAN is returned.
 func (f *Frame) UnmarshalFCS(b []byte) error {
 	// Must contain enough data for FCS, to avoid panics
 	if len(b) < 4 {
