@@ -23,6 +23,7 @@ var (
 	// following reasons:
 	//   - Priority of greater than 7 is detected
 	//   - ID of greater than 4094 (0xffe) is detected
+	//   - A customer VLAN does not follow a service VLAN (when using Q-in-Q)
 	ErrInvalidVLAN = errors.New("invalid VLAN")
 )
 

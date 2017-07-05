@@ -16,20 +16,10 @@ func TestFrameMarshalBinary(t *testing.T) {
 		err  error
 	}{
 		{
-			desc: "VLAN priority too large",
+			desc: "S-VLAN, no C-VLAN",
 			f: &Frame{
-				VLAN: []*VLAN{{
-					Priority: 8,
-				}},
-			},
-			err: ErrInvalidVLAN,
-		},
-		{
-			desc: "VLAN ID too large",
-			f: &Frame{
-				VLAN: []*VLAN{{
-					ID: VLANMax,
-				}},
+				// Contents don't matter.
+				ServiceVLAN: &VLAN{},
 			},
 			err: ErrInvalidVLAN,
 		},
@@ -48,14 +38,14 @@ func TestFrameMarshalBinary(t *testing.T) {
 			}, bytes.Repeat([]byte{0}, 50)...),
 		},
 		{
-			desc: "IPv6, 1 VLAN: PRI 1, ID 101",
+			desc: "IPv6, C-VLAN: (PRI 1, ID 101)",
 			f: &Frame{
 				Destination: net.HardwareAddr{1, 0, 1, 0, 1, 0},
 				Source:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
-				VLAN: []*VLAN{{
+				VLAN: &VLAN{
 					Priority: 1,
 					ID:       101,
-				}},
+				},
 				EtherType: EtherTypeIPv6,
 				Payload:   bytes.Repeat([]byte{0}, 50),
 			},
@@ -68,19 +58,17 @@ func TestFrameMarshalBinary(t *testing.T) {
 			}, bytes.Repeat([]byte{0}, 50)...),
 		},
 		{
-			desc: "ARP, 2 VLANs: (PRI 0, DROP, ID 100) (PRI 1, ID 101)",
+			desc: "ARP, S-VLAN: (PRI 0, DROP, ID 100), C-VLAN: (PRI 1, ID 101)",
 			f: &Frame{
 				Destination: Broadcast,
 				Source:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
-				VLAN: []*VLAN{
-					{
-						DropEligible: true,
-						ID:           100,
-					},
-					{
-						Priority: 1,
-						ID:       101,
-					},
+				ServiceVLAN: &VLAN{
+					DropEligible: true,
+					ID:           100,
+				},
+				VLAN: &VLAN{
+					Priority: 1,
+					ID:       101,
 				},
 				EtherType: EtherTypeARP,
 				Payload:   bytes.Repeat([]byte{0}, 50),
@@ -88,7 +76,7 @@ func TestFrameMarshalBinary(t *testing.T) {
 			b: append([]byte{
 				0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 				0, 1, 0, 1, 0, 1,
-				0x81, 0x00,
+				0x88, 0xa8,
 				0x10, 0x64,
 				0x81, 0x00,
 				0x20, 0x65,
@@ -122,15 +110,6 @@ func TestFrameMarshalFCS(t *testing.T) {
 		b    []byte
 		err  error
 	}{
-		{
-			desc: "VLAN priority too large",
-			f: &Frame{
-				VLAN: []*VLAN{{
-					Priority: 8,
-				}},
-			},
-			err: ErrInvalidVLAN,
-		},
 		{
 			desc: "IPv4, no VLANs",
 			f: &Frame{
@@ -188,7 +167,17 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 			err:  io.ErrUnexpectedEOF,
 		},
 		{
-			desc: "1 short VLAN",
+			desc: "1 short S-VLAN",
+			b: []byte{
+				0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0,
+				0x88, 0xa8,
+				0x00,
+			},
+			err: io.ErrUnexpectedEOF,
+		},
+		{
+			desc: "1 short C-VLAN",
 			b: []byte{
 				0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0,
@@ -207,6 +196,30 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 				0x00, 0x00,
 			},
 			err: ErrInvalidVLAN,
+		},
+		{
+			desc: "no C-VLAN after S-VLAN",
+			b: []byte{
+				0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0,
+				0x88, 0xa8,
+				0x20, 0x65,
+				0x08, 0x06,
+				0x00, 0x00, 0x00, 0x00,
+			},
+			err: ErrInvalidVLAN,
+		},
+		{
+			desc: "short C-VLAN after S-VLAN",
+			b: []byte{
+				0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0,
+				0x88, 0xa8,
+				0x20, 0x65,
+				0x81, 0x00,
+				0x00, 0x00,
+			},
+			err: io.ErrUnexpectedEOF,
 		},
 		{
 			desc: "go-fuzz crasher: VLAN tag without enough bytes for trailing EtherType",
@@ -237,7 +250,7 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 			},
 		},
 		{
-			desc: "IPv6, 1 VLAN: PRI 1, ID 101",
+			desc: "IPv6, C-VLAN: (PRI 1, ID 101)",
 			b: append([]byte{
 				1, 0, 1, 0, 1, 0,
 				0, 1, 0, 1, 0, 1,
@@ -248,20 +261,20 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 			f: &Frame{
 				Destination: net.HardwareAddr{1, 0, 1, 0, 1, 0},
 				Source:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
-				VLAN: []*VLAN{{
+				VLAN: &VLAN{
 					Priority: 1,
 					ID:       101,
-				}},
+				},
 				EtherType: EtherTypeIPv6,
 				Payload:   bytes.Repeat([]byte{0}, 50),
 			},
 		},
 		{
-			desc: "ARP, 2 VLANs: (PRI 0, DROP, ID 100), (PRI 1, ID 101)",
+			desc: "ARP, S-VLAN: (PRI 0, DROP, ID 100), C-VLAN: (PRI 1, ID 101)",
 			b: append([]byte{
 				0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 				0, 1, 0, 1, 0, 1,
-				0x81, 0x00,
+				0x88, 0xa8,
 				0x10, 0x64,
 				0x81, 0x00,
 				0x20, 0x65,
@@ -270,15 +283,13 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 			f: &Frame{
 				Destination: Broadcast,
 				Source:      net.HardwareAddr{0, 1, 0, 1, 0, 1},
-				VLAN: []*VLAN{
-					{
-						DropEligible: true,
-						ID:           100,
-					},
-					{
-						Priority: 1,
-						ID:       101,
-					},
+				ServiceVLAN: &VLAN{
+					DropEligible: true,
+					ID:           100,
+				},
+				VLAN: &VLAN{
+					Priority: 1,
+					ID:       101,
 				},
 				EtherType: EtherTypeARP,
 				Payload:   bytes.Repeat([]byte{0}, 50),
@@ -371,13 +382,11 @@ func BenchmarkFrameMarshalBinary(b *testing.B) {
 	benchmarkFrameMarshalBinary(b, f)
 }
 
-func BenchmarkFrameMarshalBinaryOneVLAN(b *testing.B) {
+func BenchmarkFrameMarshalBinaryCVLAN(b *testing.B) {
 	f := &Frame{
-		VLAN: []*VLAN{
-			{
-				Priority: PriorityBackground,
-				ID:       10,
-			},
+		VLAN: &VLAN{
+			Priority: PriorityBackground,
+			ID:       10,
 		},
 		Payload: []byte{0, 1, 2, 3, 4},
 	}
@@ -385,17 +394,15 @@ func BenchmarkFrameMarshalBinaryOneVLAN(b *testing.B) {
 	benchmarkFrameMarshalBinary(b, f)
 }
 
-func BenchmarkFrameMarshalBinaryTwoVLANs(b *testing.B) {
+func BenchmarkFrameMarshalBinarySVLANCVLAN(b *testing.B) {
 	f := &Frame{
-		VLAN: []*VLAN{
-			{
-				Priority: PriorityBackground,
-				ID:       10,
-			},
-			{
-				Priority: PriorityBestEffort,
-				ID:       20,
-			},
+		ServiceVLAN: &VLAN{
+			Priority: PriorityBackground,
+			ID:       10,
+		},
+		VLAN: &VLAN{
+			Priority: PriorityBestEffort,
+			ID:       20,
 		},
 		Payload: []byte{0, 1, 2, 3, 4},
 	}
@@ -457,31 +464,28 @@ func BenchmarkFrameUnmarshalBinary(b *testing.B) {
 	benchmarkFrameUnmarshalBinary(b, f)
 }
 
-func BenchmarkFrameUnmarshalBinaryOneVLAN(b *testing.B) {
+func BenchmarkFrameUnmarshalBinaryCVLAN(b *testing.B) {
 	f := &Frame{
-		VLAN: []*VLAN{
-			{
-				Priority: PriorityBackground,
-				ID:       10,
-			},
+		VLAN: &VLAN{
+			Priority: PriorityBackground,
+			ID:       10,
 		},
+
 		Payload: []byte{0, 1, 2, 3, 4},
 	}
 
 	benchmarkFrameUnmarshalBinary(b, f)
 }
 
-func BenchmarkFrameUnmarshalBinaryTwoVLANs(b *testing.B) {
+func BenchmarkFrameUnmarshalBinarySVLANCVLAN(b *testing.B) {
 	f := &Frame{
-		VLAN: []*VLAN{
-			{
-				Priority: PriorityBackground,
-				ID:       10,
-			},
-			{
-				Priority: PriorityBestEffort,
-				ID:       20,
-			},
+		ServiceVLAN: &VLAN{
+			Priority: PriorityBackground,
+			ID:       10,
+		},
+		VLAN: &VLAN{
+			Priority: PriorityBestEffort,
+			ID:       20,
 		},
 		Payload: []byte{0, 1, 2, 3, 4},
 	}
