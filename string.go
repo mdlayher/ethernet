@@ -9,6 +9,7 @@ const (
 	_EtherType_name_1 = "EtherTypeARP"
 	_EtherType_name_2 = "EtherTypeVLAN"
 	_EtherType_name_3 = "EtherTypeIPv6"
+	_EtherType_name_4 = "EtherTypeServiceVLAN"
 )
 
 var (
@@ -16,6 +17,7 @@ var (
 	_EtherType_index_1 = [...]uint8{0, 12}
 	_EtherType_index_2 = [...]uint8{0, 13}
 	_EtherType_index_3 = [...]uint8{0, 13}
+	_EtherType_index_4 = [...]uint8{0, 20}
 )
 
 func (i EtherType) String() string {
@@ -28,6 +30,8 @@ func (i EtherType) String() string {
 		return _EtherType_name_2
 	case i == 34525:
 		return _EtherType_name_3
+	case i == 34984:
+		return _EtherType_name_4
 	default:
 		return fmt.Sprintf("EtherType(%d)", i)
 	}
