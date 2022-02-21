@@ -9,7 +9,7 @@ import (
 )
 
 func TestFrameMarshalBinary(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		desc string
 		f    *Frame
 		b    []byte
@@ -104,7 +104,7 @@ func TestFrameMarshalBinary(t *testing.T) {
 }
 
 func TestFrameMarshalFCS(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		desc string
 		f    *Frame
 		b    []byte
@@ -151,7 +151,7 @@ func TestFrameMarshalFCS(t *testing.T) {
 }
 
 func TestFrameUnmarshalBinary(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		desc string
 		b    []byte
 		f    *Frame
@@ -316,7 +316,7 @@ func TestFrameUnmarshalBinary(t *testing.T) {
 }
 
 func TestFrameUnmarshalFCS(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		desc string
 		b    []byte
 		f    *Frame
