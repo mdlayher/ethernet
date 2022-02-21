@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/mdlayher/ethernet"
-	"github.com/mdlayher/raw"
+	"github.com/mdlayher/packet"
 )
 
 // Make use of an unassigned EtherType for etherecho.
@@ -35,7 +35,7 @@ func main() {
 		log.Fatalf("failed to find interface %q: %v", *ifaceFlag, err)
 	}
 
-	c, err := raw.ListenPacket(ifi, etherType, nil)
+	c, err := packet.Listen(ifi, packet.Raw, etherType, nil)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -75,7 +75,7 @@ func sendMessages(c net.PacketConn, source net.HardwareAddr, msg string) {
 
 	// Required by Linux, even though the Ethernet frame has a destination.
 	// Unused by BSD.
-	addr := &raw.Addr{
+	addr := &packet.Addr{
 		HardwareAddr: ethernet.Broadcast,
 	}
 

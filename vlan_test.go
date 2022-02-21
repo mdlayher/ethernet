@@ -8,7 +8,7 @@ import (
 )
 
 func TestVLANMarshalBinary(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		desc string
 		v    *VLAN
 		b    []byte
@@ -70,7 +70,7 @@ func TestVLANMarshalBinary(t *testing.T) {
 }
 
 func TestVLANUnmarshalBinary(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		desc string
 		b    []byte
 		v    *VLAN
