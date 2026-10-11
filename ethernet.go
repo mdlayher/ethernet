@@ -160,6 +160,10 @@ func (f *Frame) UnmarshalBinary(b []byte) error {
 		return io.ErrUnexpectedEOF
 	}
 
+	// A reused Frame must not keep a tag this buffer does not contain.
+	f.ServiceVLAN = nil
+	f.VLAN = nil
+
 	// Track offset in packet for reading data
 	n := 14
 

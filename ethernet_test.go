@@ -529,6 +529,80 @@ func BenchmarkFrameUnmarshalFCS(b *testing.B) {
 	benchmarkFrameUnmarshalFCS(b, f)
 }
 
+func TestFrameUnmarshalBinaryClearsStaleVLAN(t *testing.T) {
+	dst := net.HardwareAddr{0, 1, 0, 1, 0, 1}
+	src := net.HardwareAddr{1, 0, 1, 0, 1, 0}
+	payload := bytes.Repeat([]byte{0}, 46)
+
+	tagged := &Frame{
+		Destination: dst,
+		Source:      src,
+		ServiceVLAN: &VLAN{ID: 100},
+		VLAN:        &VLAN{ID: 10},
+		EtherType:   EtherTypeIPv4,
+		Payload:     payload,
+	}
+	tb, err := tagged.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var f Frame
+	if err := f.UnmarshalBinary(tb); err != nil {
+		t.Fatal(err)
+	}
+	if f.ServiceVLAN == nil || f.ServiceVLAN.ID != 100 || f.VLAN == nil || f.VLAN.ID != 10 {
+		t.Fatalf("tagged parse: service %#v vlan %#v", f.ServiceVLAN, f.VLAN)
+	}
+
+	plain := &Frame{
+		Destination: dst,
+		Source:      src,
+		EtherType:   EtherTypeARP,
+		Payload:     payload,
+	}
+	pb, err := plain.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.UnmarshalBinary(pb); err != nil {
+		t.Fatal(err)
+	}
+	if f.VLAN != nil || f.ServiceVLAN != nil {
+		t.Fatalf("plain frame kept vlan %#v service %#v", f.VLAN, f.ServiceVLAN)
+	}
+	if f.EtherType != EtherTypeARP {
+		t.Fatalf("EtherType = %04x, want ARP", uint16(f.EtherType))
+	}
+
+	if err := f.UnmarshalBinary(tb); err != nil {
+		t.Fatal(err)
+	}
+	customer := &Frame{
+		Destination: dst,
+		Source:      src,
+		VLAN:        &VLAN{ID: 7},
+		EtherType:   EtherTypeIPv6,
+		Payload:     payload,
+	}
+	cb, err := customer.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.UnmarshalBinary(cb); err != nil {
+		t.Fatal(err)
+	}
+	if f.ServiceVLAN != nil {
+		t.Fatalf("customer frame kept service VLAN %d", f.ServiceVLAN.ID)
+	}
+	if f.VLAN == nil || f.VLAN.ID != 7 {
+		t.Fatalf("customer VLAN = %#v", f.VLAN)
+	}
+	if f.EtherType != EtherTypeIPv6 {
+		t.Fatalf("EtherType = %04x, want IPv6", uint16(f.EtherType))
+	}
+}
+
 func benchmarkFrameUnmarshalFCS(b *testing.B, f *Frame) {
 	f.Destination = net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0xde, 0xad}
 	f.Source = net.HardwareAddr{0xad, 0xbe, 0xef, 0xde, 0xad, 0xde}
